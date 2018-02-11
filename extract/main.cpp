@@ -28,6 +28,7 @@ namespace
 {
 
 std::string output_filename; // 出力ファイル名(オプション)
+std::string input_filename;  // 入力ファイル名
 
 // オプションから出力ファイル名に相当する部分を抜き出して、それ以外をそのまま返す
 std::vector<const char*>
@@ -60,6 +61,10 @@ build_option(int argc, const char** argv)
       else
       {
         to_copy = true;
+        if (i > 0 && arg[0] != '-' && input_filename.empty())
+        {
+          input_filename = arg;
+        }
       }
     }
 
@@ -102,14 +107,14 @@ public:
   {
     if (output_filename.empty())
     {
-      State.put(std::cout, "a");
+      State.put(std::cout, "a", "a");
     }
     else
     {
       auto basename   = output_filename.substr(output_filename.find_last_of('/') + 1);
       auto mainname   = basename.substr(0, basename.find_last_of('.'));
       auto outputfile = std::ofstream(output_filename);
-      State.put(outputfile, mainname);
+      State.put(outputfile, input_filename, mainname);
     }
   }
 

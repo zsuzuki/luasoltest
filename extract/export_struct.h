@@ -77,15 +77,16 @@ public:
 
   void put(std::ostream& ostr) const
   {
-    ostr << "  lua.new_usertype<" << m_name << ">(\n"
-         << "    \"" << m_name << "\",\n";
+    std::string module_name = m_namespace.empty() ? m_name : m_namespace + "::" + m_name;
+    ostr << "  lua.new_usertype<" << module_name << ">(\n"
+         << "    \"" << m_name << "\"";
     for (auto& f : m_functions)
     {
-      ostr << "    \"" << f.getName() << "\", &" << m_name << "::" << f.getName() << ",\n";
+      ostr << ",\n    \"" << f.getName() << "\", &" << module_name << "::" << f.getName();
     }
     for (auto& v : m_variables)
     {
-      ostr << "    \"" << v.getName() << "\", &" << m_name << "::" << v.getName() << ",\n";
+      ostr << ",\n    \"" << v.getName() << "\", &" << module_name << "::" << v.getName();
     }
     ostr << "  );" << std::endl;
   }
@@ -120,10 +121,10 @@ public:
 
   StructPtr getCurrentStruct() { return m_current_struct; }
 
-  void put(std::ostream& ostr, std::string module_name) const
+  void put(std::ostream& ostr, std::string input_name, std::string module_name) const
   {
-    ostr << "// auto generate file\n#include <sol2.h>\n\nvoid regist_module_" << module_name
-         << "(sol::state& lua)\n{\n";
+    ostr << "// auto generate file\n#pragma once\n#include <sol2.h>\n#include <" << input_name << ">\n\n";
+    ostr << "void regist_module_" << module_name << "(sol::state& lua)\n{\n";
     for (auto& s : m_struct_list)
     {
       s->put(ostr);
