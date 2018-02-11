@@ -25,7 +25,7 @@ Test::getMessage() const
 void
 Test::print() const
 {
-  std::cout << msg << std::endl;
+  std::cout << "[" << id << "]: " << msg << std::endl;
 }
 
 } // namespace TEST

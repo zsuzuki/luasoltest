@@ -17,11 +17,62 @@
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 
+#include <fstream>
 #include <iostream>
 
 #include "export_struct.h"
 
 using namespace clang;
+
+namespace
+{
+
+std::string output_filename; // 出力ファイル名(オプション)
+
+// オプションから出力ファイル名に相当する部分を抜き出して、それ以外をそのまま返す
+std::vector<const char*>
+build_option(int argc, const char** argv)
+{
+  std::vector<const char*> option_list;
+  option_list.reserve(argc);
+  option_list.resize(0);
+
+  bool check_finish = false;
+  for (int i = 0; i < argc; i++)
+  {
+    std::string arg     = argv[i];
+    bool        to_copy = check_finish;
+    if (to_copy == false)
+    {
+      if (arg == "--")
+      {
+        to_copy = true;
+      }
+      else if (arg == "-o")
+      {
+        i++;
+        if (i >= argc)
+        {
+          break;
+        }
+        output_filename = argv[i];
+      }
+      else
+      {
+        to_copy = true;
+      }
+    }
+
+    if (to_copy)
+    {
+      option_list.push_back(argv[i]);
+    }
+  }
+
+  return option_list;
+}
+
+} // namespace
 
 //
 // 解析
@@ -44,6 +95,22 @@ public:
   ExportVisitor(CompilerInstance* CI)
       : Policy(PrintingPolicy(CI->getASTContext().getPrintingPolicy())), SM(CI->getASTContext().getSourceManager())
   {
+  }
+
+  // (ファイルとかに)出力
+  void put() const
+  {
+    if (output_filename.empty())
+    {
+      State.put(std::cout, "a");
+    }
+    else
+    {
+      auto basename   = output_filename.substr(output_filename.find_last_of('/') + 1);
+      auto mainname   = basename.substr(0, basename.find_last_of('.'));
+      auto outputfile = std::ofstream(output_filename);
+      State.put(outputfile, mainname);
+    }
   }
 
 private:
@@ -80,18 +147,18 @@ public:
   {
     for (DeclContext::decl_iterator i = aDeclContext->decls_begin(), e = aDeclContext->decls_end(); i != e; i++)
     {
-      Decl* D  = *i;
-      auto  cs = State.getCurrentStruct();
-      if (cs)
-      {
-        if (D->getKind() == Decl::Kind::Var)
-        {
-          llvm::errs() << "TopLevel : " << D->getDeclKindName(); // Declの型表示
-          if (NamedDecl* N = dyn_cast<NamedDecl>(D))
-            llvm::errs() << " " << N->getNameAsString();                       // NamedDeclなら名前表示
-          llvm::errs() << " (" << D->getLocation().printToString(SM) << ")\n"; // ソース上の場所表示
-        }
-      }
+      Decl* D = *i;
+      // auto  cs = State.getCurrentStruct();
+      // if (cs)
+      // {
+      //   if (D->getKind() == Decl::Kind::Var)
+      //   {
+      //     llvm::errs() << "TopLevel : " << D->getDeclKindName(); // Declの型表示
+      //     if (NamedDecl* N = dyn_cast<NamedDecl>(D))
+      //       llvm::errs() << " " << N->getNameAsString();                       // NamedDeclなら名前表示
+      //     llvm::errs() << " (" << D->getLocation().printToString(SM) << ")\n"; // ソース上の場所表示
+      //   }
+      // }
       Visit(D); // llvm\tools\clang\include\clang\AST\DeclVisitor.hの38行目
     }
   }
@@ -172,8 +239,7 @@ public:
         if (aFieldDecl->getAccess() == AS_public)
         {
           // output
-          llvm::errs() << "FieldDecl :" << aFieldDecl->getType().getAsString(Policy) << " "
-                       << aFieldDecl->getNameAsString() << "\n";
+          cs->pushVariable(aFieldDecl->getNameAsString());
         }
       }
     }
@@ -189,13 +255,18 @@ public:
     {
       if (aFunctionDecl->getAccess() == AS_public)
       {
-        llvm::errs() << "FunctionDecl :" << aFunctionDecl->getType().getAsString(Policy) << " "
-                     << aFunctionDecl->getNameAsString();
+        auto func_name = aFunctionDecl->getNameAsString();
         if (checkAnnotation(aFunctionDecl) == AnnotatePolicy::Property)
         {
-          llvm::errs() << "(property)";
+          // llvm::errs() << "(property)";
         }
-        llvm::errs() << "\n";
+        else
+        {
+          if (aFunctionDecl->getDeclKind() == Decl::Kind::CXXMethod)
+          {
+            cs->pushFunction(func_name); // 通常のメソッドのみ登録
+          }
+        }
       }
     }
 
@@ -205,17 +276,17 @@ public:
   // Enum
   bool VisitEnumDecl(EnumDecl* aEnumDecl)
   {
-    auto cs        = State.getCurrentStruct();
-    bool to_export = checkAnnotation(aEnumDecl) == AnnotatePolicy::Export;
-    if (to_export || cs)
-    {
-      llvm::errs() << "Enum: " << aEnumDecl->getNameAsString() << "\n";
-      auto el = aEnumDecl->enumerators();
-      for (auto e = el.begin(); e != el.end(); e++)
-      {
-        llvm::errs() << "  M: " << (*e)->getNameAsString() << "\n";
-      }
-    }
+    // auto cs        = State.getCurrentStruct();
+    // bool to_export = checkAnnotation(aEnumDecl) == AnnotatePolicy::Export;
+    // if (to_export || cs)
+    // {
+    //   llvm::errs() << "Enum: " << aEnumDecl->getNameAsString() << "\n";
+    //   auto el = aEnumDecl->enumerators();
+    //   for (auto e = el.begin(); e != el.end(); e++)
+    //   {
+    //     llvm::errs() << "  M: " << (*e)->getNameAsString() << "\n";
+    //   }
+    // }
     return true;
   }
 
@@ -286,7 +357,11 @@ private:
 public:
   explicit ExportASTConsumer(CompilerInstance* CI) : visitor(new ExportVisitor(CI)) {}
   // AST解析結果の受取
-  void HandleTranslationUnit(ASTContext& Context) override { visitor->EnumerateDecl(Context.getTranslationUnitDecl()); }
+  void HandleTranslationUnit(ASTContext& Context) override
+  {
+    visitor->EnumerateDecl(Context.getTranslationUnitDecl());
+    visitor->put();
+  }
 };
 
 class ExportFrontendAction : public SyntaxOnlyAction /*ASTFrontendAction*/
@@ -305,7 +380,9 @@ static llvm::cl::OptionCategory MyToolCategory("lua-export tool options");
 int
 main(int argc, const char** argv)
 {
-  tooling::CommonOptionsParser op(argc, argv, MyToolCategory);
+  auto                         args   = build_option(argc, argv);
+  int                          n_args = args.size();
+  tooling::CommonOptionsParser op(n_args, &args[0], MyToolCategory);
   tooling::ClangTool           Tool(op.getCompilations(), op.getSourcePathList());
   auto                         action = clang::tooling::newFrontendActionFactory<ExportFrontendAction>();
   return Tool.run(action.get());

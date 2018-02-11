@@ -33,6 +33,8 @@ public:
     FINISH
   };
 
+  int id = 0;
+
   LUAPROPERTY void  setMessage(const std::string m);
   LUAPROPERTY const std::string& getMessage() const;
 

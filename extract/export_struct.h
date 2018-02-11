@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,8 +17,10 @@ class Variable
   std::string m_name;
 
 public:
-  Variable()  = default;
+  Variable(std::string name) : m_name(name) {}
   ~Variable() = default;
+
+  const std::string& getName() const { return m_name; }
 };
 
 //
@@ -36,8 +39,10 @@ class Function
   std::string m_name;
 
 public:
-  Function()  = default;
+  Function(std::string name) : m_name(name) {}
   ~Function() = default;
+
+  const std::string& getName() const { return m_name; }
 };
 
 //
@@ -66,6 +71,24 @@ public:
   ~Struct() = default;
 
   void storeType(Type t) { m_type = t; }
+
+  void pushFunction(std::string func_name) { m_functions.push_back(Function(func_name)); }
+  void pushVariable(std::string var_name) { m_variables.push_back(Variable(var_name)); }
+
+  void put(std::ostream& ostr) const
+  {
+    ostr << "  lua.new_usertype<" << m_name << ">(\n"
+         << "    \"" << m_name << "\",\n";
+    for (auto& f : m_functions)
+    {
+      ostr << "    \"" << f.getName() << "\", &" << m_name << "::" << f.getName() << ",\n";
+    }
+    for (auto& v : m_variables)
+    {
+      ostr << "    \"" << v.getName() << "\", &" << m_name << "::" << v.getName() << ",\n";
+    }
+    ostr << "  );" << std::endl;
+  }
 };
 
 //
@@ -73,11 +96,12 @@ public:
 //
 class State
 {
-  using StructPtr = std::shared_ptr<Struct>;
+  using StructPtr  = std::shared_ptr<Struct>;
+  using StructList = std::vector<StructPtr>;
 
-  std::string            m_namespace;
-  std::vector<StructPtr> m_struct_list;
-  StructPtr              m_current_struct;
+  std::string m_namespace;
+  StructList  m_struct_list;
+  StructPtr   m_current_struct;
 
 public:
   State()  = default;
@@ -95,5 +119,16 @@ public:
   void endStruct() { m_current_struct.reset(); }
 
   StructPtr getCurrentStruct() { return m_current_struct; }
+
+  void put(std::ostream& ostr, std::string module_name) const
+  {
+    ostr << "// auto generate file\n#include <sol2.h>\n\nvoid regist_module_" << module_name
+         << "(sol::state& lua)\n{\n";
+    for (auto& s : m_struct_list)
+    {
+      s->put(ostr);
+    }
+    ostr << "}\n" << std::endl;
+  }
 };
 } // namespace ExportAnnotation
