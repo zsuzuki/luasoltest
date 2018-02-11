@@ -1,0 +1,56 @@
+#
+# Copyright 2018 Yoshinori Suzuki<wave.suzuki.z@gmail.com>
+#
+variable:
+- {name: compiler_command, value: "clang++"}
+- {name: compiler_command, value: "g++-5", type: c9}
+
+- {name: compiler, value: "${compiler_command}"}
+- {name: archiver, value: ar}
+- {name: linker,   value: "${compiler_command}"}
+
+define:
+- list:
+  debug: [ DEBUG=1 ]
+
+include:
+- {type: c9, list: [ /usr/local/include ]}
+- list:
+  - include
+  - modules
+
+option:
+- list:
+  - c
+  - g3
+  - std=c++14
+  - Wall
+  - MMD
+  - MT $out
+  - MF $dep
+  debug: [ O0 ]
+  release: [ O3 ]
+
+archive_option:
+- list: [ rcs ]
+
+link_option:
+- list: [ g3 ]
+- {type: c9, list: [ L/usr/local/lib ]}
+
+libraries:
+- list: [ lua ]
+- {type: c9, list: [ dl, pthread ]}
+
+subdir:
+- list:
+  - extract
+  - modules
+
+source:
+- list:
+  - src/main.cpp
+
+target:
+- name: soltest
+  type: execute

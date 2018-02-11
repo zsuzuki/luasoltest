@@ -1,0 +1,44 @@
+//
+// Copyright 2018 Yoshinori Suzuki<wave.suzuki.z@gmail.com>
+//
+#pragma once
+#include <common/export.h>
+#include <string>
+
+namespace TEST
+{
+
+// test enum
+enum class LUAEXPORT TestEnum : uint8_t
+{
+  HELLO,
+  WORLD,
+  GOODBYE,
+};
+
+// test class
+struct LUAEXPORT Test
+{
+private:
+  std::string msg;
+
+public:
+  Test()  = default;
+  ~Test() = default;
+
+  enum class State : uint8_t
+  {
+    STOP,
+    START,
+    FINISH
+  };
+
+  LUAPROPERTY void  setMessage(const std::string m);
+  LUAPROPERTY const std::string& getMessage() const;
+
+  void print() const;
+
+  static constexpr size_t MAX_SIZE = 200;
+};
+
+} // namespace TEST

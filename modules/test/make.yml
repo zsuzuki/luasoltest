@@ -1,0 +1,10 @@
+#
+# Copyright 2018 Yoshinori Suzuki<wave.suzuki.z@gmail.com>
+#
+source:
+- list:
+  - test.cpp
+
+target:
+- name: test
+  type: library
