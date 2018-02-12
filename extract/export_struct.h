@@ -174,7 +174,7 @@ public:
 
   void putCPP(std::ostream& ostr, std::string input_name, std::string module_name) const
   {
-    ostr << "// auto generate file\n#pragma once\n#include <sol2.h>\n#include <" << input_name << ">\n\n";
+    ostr << "// auto generate file\n#include <sol2.h>\n#include \"" << input_name << "\"\n\n";
     ostr << "namespace LUAMODULES\n{\nvoid module_" << module_name << "(sol::state& lua)\n{\n";
     for (auto& s : m_struct_list)
     {

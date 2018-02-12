@@ -4,15 +4,7 @@
 #include <iostream>
 #include <sol2.h>
 
-#include "test_lua.h"
-
-#define ANNO(label) __attribute__((annotate(#label)))
-
-struct ANNO(test) Hello
-{
-  ANNO(open) int n = 0;
-  ANNO(func) void put() { std::cout << "Struct" << std::endl; }
-};
+#include <luabridge/test.h>
 
 const char* Hello = "Hello,Gekko";
 
@@ -21,12 +13,37 @@ main(int argc, const char** argv)
 {
   sol::state lua;
 
+  std::string inputfile;
+  std::string inputscript;
+  for (int i = 1; i < argc; i++)
+  {
+    auto        getnext = [&]() { return (++i < argc) ? argv[i] : ""; };
+    std::string arg     = argv[i];
+    if (arg[0] == '-')
+    {
+      if (arg == "-e")
+      {
+        inputscript = getnext();
+      }
+    }
+    else if (inputfile.empty())
+    {
+      inputfile = arg;
+    }
+  }
+
   lua["hello"] = []() { std::cout << Hello << std::endl; };
-  regist_module_test_lua(lua);
+  LUAMODULES::module_test(lua);
   TEST::Test t;
   lua["t"] = t;
+  if (inputscript.empty())
+  {
+    inputfile.empty() ? lua.script("hello()") : lua.script_file(inputfile);
+  }
+  else
+  {
+    lua.script(inputscript);
+  }
   // lua.open_libraries(sol::lib::base, sol::lib::package);
-  lua.script("t.id=3\
-  t:print()");
   return 0;
 }
