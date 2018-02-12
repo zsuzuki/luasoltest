@@ -105,16 +105,16 @@ public:
   // (ファイルとかに)出力
   void put() const
   {
+    auto basename = input_filename.substr(input_filename.find_last_of('/') + 1);
+    auto mainname = basename.substr(0, basename.find_last_of('.'));
     if (output_filename.empty())
     {
-      State.put(std::cout, "a", "a");
+      State.putCPP(std::cout, input_filename, mainname);
     }
     else
     {
-      auto basename   = output_filename.substr(output_filename.find_last_of('/') + 1);
-      auto mainname   = basename.substr(0, basename.find_last_of('.'));
       auto outputfile = std::ofstream(output_filename);
-      State.put(outputfile, input_filename, mainname);
+      State.putCPP(outputfile, input_filename, mainname);
     }
   }
 
@@ -264,6 +264,11 @@ public:
         if (checkAnnotation(aFunctionDecl) == AnnotatePolicy::Property)
         {
           // llvm::errs() << "(property)";
+          auto prop = ExportAnnotation::Property::getPropName(func_name);
+          if (!prop.first.empty())
+          {
+            cs->pushProperty(prop);
+          }
         }
         else
         {

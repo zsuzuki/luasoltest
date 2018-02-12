@@ -3,7 +3,9 @@
 //
 #pragma once
 
+#include <ctype.h>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,37 +14,69 @@ namespace ExportAnnotation
 {
 
 //
-class Variable
+class Unit
 {
   std::string m_name;
 
 public:
-  Variable(std::string name) : m_name(name) {}
-  ~Variable() = default;
+  Unit() = default;
+  Unit(const std::string name) : m_name(name) {}
+  virtual ~Unit() = default;
 
+  void               setName(const std::string& name) { m_name = name; }
   const std::string& getName() const { return m_name; }
 };
 
 //
-class Property
+class Variable : public Unit
 {
-  std::string m_name;
+public:
+  Variable(const std::string name) : Unit(name) {}
+  ~Variable() override = default;
+};
+
+//
+class Function : public Unit
+{
+public:
+  Function(const std::string name) : Unit(name) {}
+  ~Function() override = default;
+};
+
+//
+class Property : public Unit
+{
+  bool has_getter = false;
+  bool has_setter = false;
 
 public:
   Property()  = default;
   ~Property() = default;
-};
 
-//
-class Function
-{
-  std::string m_name;
+  void                  haveSetter() { has_setter = true; }
+  void                  haveGetter() { has_getter = true; }
+  std::pair<bool, bool> getProp() const { return std::make_pair(has_getter, has_setter); }
 
-public:
-  Function(std::string name) : m_name(name) {}
-  ~Function() = default;
+  static std::pair<std::string, bool> getPropName(std::string name)
+  {
+    if (name.length() < 4)
+    {
+      return std::make_pair("", false);
+    }
 
-  const std::string& getName() const { return m_name; }
+    auto dirname = name.substr(0, 3);
+    bool dir     = true;
+    if (dirname == "get" || dirname == "Get")
+    {
+      dir = false;
+    }
+    else if (dirname != "set" && dirname != "Set")
+    {
+      return std::make_pair("", false);
+    }
+
+    return std::make_pair(name.substr(3), dir);
+  }
 };
 
 //
@@ -60,9 +94,9 @@ private:
   std::string m_namespace;
   std::string m_name;
 
-  std::vector<Variable> m_variables;
-  std::vector<Property> m_properties;
-  std::vector<Function> m_functions;
+  std::vector<Variable>           m_variables;
+  std::vector<Function>           m_functions;
+  std::map<std::string, Property> m_properties;
 
   Type m_type = Type::Struct;
 
@@ -72,8 +106,14 @@ public:
 
   void storeType(Type t) { m_type = t; }
 
-  void pushFunction(std::string func_name) { m_functions.push_back(Function(func_name)); }
-  void pushVariable(std::string var_name) { m_variables.push_back(Variable(var_name)); }
+  void pushFunction(const std::string func_name) { m_functions.push_back(Function(func_name)); }
+  void pushVariable(const std::string var_name) { m_variables.push_back(Variable(var_name)); }
+  void pushProperty(const std::pair<std::string, bool> prop)
+  {
+    auto& p = m_properties[prop.first];
+    p.setName(prop.first);
+    prop.second ? p.haveSetter() : p.haveGetter();
+  }
 
   void put(std::ostream& ostr) const
   {
@@ -88,7 +128,18 @@ public:
     {
       ostr << ",\n    \"" << v.getName() << "\", &" << module_name << "::" << v.getName();
     }
-    ostr << "  );" << std::endl;
+    for (auto& p : m_properties)
+    {
+      auto prop   = p.second;
+      auto getset = prop.getProp();
+      auto pname  = prop.getName();
+      ostr << ",\n    \"" << p.first << "\", sol::property(";
+      getset.first ? ostr << "&" << module_name << "::get" << pname : ostr << "nulptr";
+      ostr << ", ";
+      getset.second ? ostr << "&" << module_name << "::set" << pname : ostr << "nulptr";
+      ostr << ")";
+    }
+    ostr << " );" << std::endl;
   }
 };
 
@@ -121,15 +172,15 @@ public:
 
   StructPtr getCurrentStruct() { return m_current_struct; }
 
-  void put(std::ostream& ostr, std::string input_name, std::string module_name) const
+  void putCPP(std::ostream& ostr, std::string input_name, std::string module_name) const
   {
     ostr << "// auto generate file\n#pragma once\n#include <sol2.h>\n#include <" << input_name << ">\n\n";
-    ostr << "void regist_module_" << module_name << "(sol::state& lua)\n{\n";
+    ostr << "namespace LUAMODULES\n{\nvoid module_" << module_name << "(sol::state& lua)\n{\n";
     for (auto& s : m_struct_list)
     {
       s->put(ostr);
     }
-    ostr << "}\n" << std::endl;
+    ostr << "}\n} // namespace LUAMODULES\n" << std::endl;
   }
 };
 } // namespace ExportAnnotation
