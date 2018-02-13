@@ -37,13 +37,21 @@ main(int argc, const char** argv)
   LUAMODULES::module_test(lua);
   TEST::Test t;
   lua["t"] = t;
-  if (inputscript.empty())
+  try
   {
-    inputfile.empty() ? lua.script("hello()") : lua.script_file(inputfile);
+    if (inputscript.empty())
+    {
+      inputfile.empty() ? lua.script("hello()") : lua.script_file(inputfile);
+    }
+    else
+    {
+      lua.script(inputscript);
+    }
   }
-  else
+  catch (sol::error& e)
   {
-    lua.script(inputscript);
+    std::cerr << e.what() << std::endl;
+    std::cerr << "execute failed..." << std::endl;
   }
   // lua.open_libraries(sol::lib::base, sol::lib::package);
   return 0;
