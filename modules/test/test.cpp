@@ -26,6 +26,14 @@ void
 Test::print() const
 {
   std::cout << "[" << id << "]: " << msg << std::endl;
+  count++;
+}
+
+//
+int
+Test::getCount() const
+{
+  return count;
 }
 
 } // namespace TEST

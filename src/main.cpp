@@ -4,7 +4,8 @@
 #include <iostream>
 #include <sol2.h>
 
-#include <luabridge/test.h>
+#include <luabridge.h>
+#include <test/test.h>
 
 const char* Hello = "Hello,Gekko";
 

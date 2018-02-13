@@ -21,6 +21,7 @@ struct LUAEXPORT Test
 {
 private:
   std::string msg;
+  mutable int count = 0;
 
 public:
   Test()  = default;
@@ -37,6 +38,9 @@ public:
 
   LUAPROPERTY void  setMessage(const std::string m);
   LUAPROPERTY const std::string& getMessage() const;
+
+  LUAPROPERTY int  getCount() const;
+  LUAPROPERTY void getID(int i) { id = i; }
 
   void print() const;
 

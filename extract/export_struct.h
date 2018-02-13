@@ -134,9 +134,18 @@ public:
       auto getset = prop.getProp();
       auto pname  = prop.getName();
       ostr << ",\n    \"" << p.first << "\", sol::property(";
-      getset.first ? ostr << "&" << module_name << "::get" << pname : ostr << "nulptr";
-      ostr << ", ";
-      getset.second ? ostr << "&" << module_name << "::set" << pname : ostr << "nulptr";
+      if (getset.first)
+      {
+        ostr << "&" << module_name << "::get" << pname;
+        if (getset.second)
+        {
+          ostr << ", ";
+        }
+      }
+      if (getset.second)
+      {
+        ostr << "&" << module_name << "::set" << pname;
+      }
       ostr << ")";
     }
     ostr << " );" << std::endl;
@@ -181,6 +190,13 @@ public:
       s->put(ostr);
     }
     ostr << "}\n} // namespace LUAMODULES\n" << std::endl;
+  }
+
+  void putHPP(std::ostream& ostr, std::string module_name) const
+  {
+    ostr << "// auto generate file\n#pragma once\n#include <sol2.h>\n\nnamespace LUAMODULES\n{\n";
+    ostr << "void module_" << module_name << "(sol::state& lua);\n";
+    ostr << "} // namespace LUAMODULES\n" << std::endl;
   }
 };
 } // namespace ExportAnnotation

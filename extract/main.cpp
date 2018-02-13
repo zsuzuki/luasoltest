@@ -29,6 +29,8 @@ namespace
 
 std::string output_filename; // 出力ファイル名(オプション)
 std::string input_filename;  // 入力ファイル名
+std::string basedir;
+bool        output_header = false;
 
 // オプションから出力ファイル名に相当する部分を抜き出して、それ以外をそのまま返す
 std::vector<const char*>
@@ -57,6 +59,19 @@ build_option(int argc, const char** argv)
           break;
         }
         output_filename = argv[i];
+      }
+      else if (arg == "-H")
+      {
+        output_header = true;
+      }
+      else if (arg == "-b")
+      {
+        i++;
+        if (i >= argc)
+        {
+          break;
+        }
+        basedir = argv[i];
       }
       else
       {
@@ -105,16 +120,36 @@ public:
   // (ファイルとかに)出力
   void put() const
   {
-    auto basename = input_filename.substr(input_filename.find_last_of('/') + 1);
-    auto mainname = basename.substr(0, basename.find_last_of('.'));
+    auto basename  = input_filename.substr(input_filename.find_last_of('/') + 1);
+    auto mainname  = basename.substr(0, basename.find_last_of('.'));
+    auto inputname = input_filename;
+    if (basedir.empty() == false)
+    {
+      auto inputtop = inputname.substr(0, basedir.length());
+      if (inputtop == basedir)
+      {
+        inputname = inputname.substr(basedir.length() + 1);
+      }
+    }
+
     if (output_filename.empty())
     {
-      State.putCPP(std::cout, input_filename, mainname);
+      if (output_header)
+      {
+        State.putHPP(std::cout, mainname);
+      }
+      State.putCPP(std::cout, inputname, mainname);
     }
     else
     {
-      auto outputfile = std::ofstream(output_filename);
-      State.putCPP(outputfile, input_filename, mainname);
+      if (output_header)
+      {
+        auto outputfile_bn = output_filename.substr(0, output_filename.find_last_of('.'));
+        auto outputfile_h  = std::ofstream(outputfile_bn + ".h");
+        State.putHPP(outputfile_h, mainname);
+      }
+      auto outputfile_c = std::ofstream(output_filename);
+      State.putCPP(outputfile_c, inputname, mainname);
     }
   }
 
