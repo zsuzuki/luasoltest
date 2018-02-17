@@ -80,6 +80,57 @@ public:
 };
 
 //
+class Enum
+{
+private:
+  struct Data
+  {
+    union Num {
+      uint64_t u;
+      int64_t  s;
+    } n;
+    bool        is_signed;
+    std::string label;
+
+    Data() = default;
+    Data(const std::string& l, bool s = true) : is_signed(s), label(l) {}
+  };
+  std::vector<Data> m_data_list;
+
+  std::string m_namespace;
+  std::string m_name;
+  std::string m_type;
+
+public:
+  Enum(const std::string& ns, const std::string& n, const std::string& t) : m_namespace(ns), m_name(n), m_type(t) {}
+  Enum()  = default;
+  ~Enum() = default;
+
+  void pushSigned(const std::string& name, int64_t num)
+  {
+    Data d(name);
+    d.n.s = num;
+    m_data_list.push_back(d);
+  }
+  void pushUnsigned(const std::string& name, uint64_t num)
+  {
+    Data d(name, false);
+    d.n.u = num;
+    m_data_list.push_back(d);
+  }
+
+  void put(std::ostream& ostr) const
+  {
+    ostr << "  sol::table t_" << m_name << " = lua.create_table_with();\n";
+    for (auto& d : m_data_list)
+    {
+      ostr << "  t_" << m_name << "[\"" << d.label << "\"] = " << (d.is_signed ? d.n.s : d.n.u) << ";\n";
+    }
+    ostr << "  t_" << m_namespace << "[\"" << m_name << "\"] = t_" << m_name << ";\n";
+  }
+};
+
+//
 class Struct
 {
 public:
@@ -94,9 +145,12 @@ private:
   std::string m_namespace;
   std::string m_name;
 
+  using Constructor = std::vector<std::string>;
+
   std::vector<Variable>           m_variables;
   std::vector<Function>           m_functions;
   std::map<std::string, Property> m_properties;
+  std::vector<Constructor>        m_constructors;
 
   Type m_type = Type::Struct;
 
@@ -104,7 +158,8 @@ public:
   Struct(std::string ns, std::string name) : m_namespace(ns), m_name(name) {}
   ~Struct() = default;
 
-  void storeType(Type t) { m_type = t; }
+  void               storeType(Type t) { m_type = t; }
+  const std::string& getName() const { return m_name; }
 
   void pushFunction(const std::string func_name) { m_functions.push_back(Function(func_name)); }
   void pushVariable(const std::string var_name) { m_variables.push_back(Variable(var_name)); }
@@ -114,12 +169,39 @@ public:
     p.setName(prop.first);
     prop.second ? p.haveSetter() : p.haveGetter();
   }
+  void pushConstructor(std::vector<std::string>& arg_list) { m_constructors.push_back(arg_list); }
 
   void put(std::ostream& ostr) const
   {
     std::string module_name = m_namespace.empty() ? m_name : m_namespace + "::" + m_name;
     ostr << "  lua.new_usertype<" << module_name << ">(\n"
          << "    \"" << m_name << "\"";
+    if (m_constructors.size() > 0)
+    {
+      ostr << ",\n    sol::constructors<";
+      bool first_c = true;
+      for (auto& c : m_constructors)
+      {
+        if (first_c == false)
+        {
+          ostr << ", ";
+        }
+        ostr << "sol::types<";
+        bool first_a = true;
+        for (auto& arg : c)
+        {
+          if (first_a == false)
+          {
+            ostr << ", ";
+          }
+          ostr << arg;
+          first_a = false;
+        }
+        ostr << ">";
+        first_c = false;
+      }
+      ostr << ">()";
+    }
     for (auto& f : m_functions)
     {
       ostr << ",\n    \"" << f.getName() << "\", &" << module_name << "::" << f.getName();
@@ -159,10 +241,14 @@ class State
 {
   using StructPtr  = std::shared_ptr<Struct>;
   using StructList = std::vector<StructPtr>;
+  using EnumList   = std::vector<Enum>;
+  using TableList  = std::vector<std::string>;
 
   std::string m_namespace;
   StructList  m_struct_list;
   StructPtr   m_current_struct;
+  EnumList    m_enum_list;
+  TableList   m_create_table_list;
 
 public:
   State()  = default;
@@ -179,12 +265,31 @@ public:
   }
   void endStruct() { m_current_struct.reset(); }
 
-  StructPtr getCurrentStruct() { return m_current_struct; }
+  void pushEnumerate(const Enum& e)
+  {
+    auto result = std::find(m_create_table_list.begin(), m_create_table_list.end(), m_namespace);
+    if (result == m_create_table_list.end())
+    {
+      m_create_table_list.push_back(m_namespace);
+    }
+    m_enum_list.push_back(e);
+  }
+
+  StructPtr          getCurrentStruct() { return m_current_struct; }
+  const std::string& getNamespace() const { return m_namespace; }
 
   void putCPP(std::ostream& ostr, std::string input_name, std::string module_name) const
   {
     ostr << "// auto generate file\n#include <sol2.h>\n#include \"" << input_name << "\"\n\n";
     ostr << "namespace LUAMODULES\n{\nvoid module_" << module_name << "(sol::state& lua)\n{\n";
+    for (auto& t : m_create_table_list)
+    {
+      ostr << "  sol::table t_" << t << " = lua.create_named_table(\"" << t << "\");\n";
+    }
+    for (auto& e : m_enum_list)
+    {
+      e.put(ostr);
+    }
     for (auto& s : m_struct_list)
     {
       s->put(ostr);

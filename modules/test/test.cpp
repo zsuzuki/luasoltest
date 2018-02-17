@@ -8,6 +8,15 @@ namespace TEST
 {
 
 //
+Test::Test(int i) : id(i) { std::cout << "init number: " << i << std::endl; }
+
+//
+Test::Test(const char* m) : msg(m) { std::cout << "init message: " << m << std::endl; }
+
+//
+Test::~Test() { std::cout << "Test Destructor" << id << "," << count << "," << msg << std::endl; }
+
+//
 void
 Test::setMessage(const std::string m)
 {

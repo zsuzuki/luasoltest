@@ -35,7 +35,7 @@ main(int argc, const char** argv)
 
   lua["hello"] = []() { std::cout << Hello << std::endl; };
   LUAMODULES::module_test(lua);
-  TEST::Test t;
+  TEST::Test t("C++");
   lua["t"] = t;
   try
   {

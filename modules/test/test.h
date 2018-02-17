@@ -11,7 +11,7 @@ namespace TEST
 // test enum
 enum class LUAEXPORT TestEnum : uint8_t
 {
-  HELLO,
+  HELLO = 8,
   WORLD,
   GOODBYE,
 };
@@ -24,12 +24,14 @@ private:
   mutable int count = 0;
 
 public:
-  Test()  = default;
-  ~Test() = default;
+  LUACONSTRUCTOR Test(int i);
+  LUACONSTRUCTOR Test(const char* m);
+  Test() = default;
+  ~Test();
 
-  enum class State : uint8_t
+  enum class State : int8_t
   {
-    STOP,
+    STOP = -1,
     START,
     FINISH
   };

@@ -108,7 +108,8 @@ private:
   {
     None,
     Export,
-    Property
+    Property,
+    Constructor
   };
 
 public:
@@ -174,6 +175,10 @@ private:
           else if (annotation == "luaproperty")
           {
             ret = AnnotatePolicy::Property;
+          }
+          else if (annotation == "luaconstructor")
+          {
+            ret = AnnotatePolicy::Constructor;
           }
         }
       }
@@ -296,7 +301,8 @@ public:
       if (aFunctionDecl->getAccess() == AS_public)
       {
         auto func_name = aFunctionDecl->getNameAsString();
-        if (checkAnnotation(aFunctionDecl) == AnnotatePolicy::Property)
+        auto annotate  = checkAnnotation(aFunctionDecl);
+        if (annotate == AnnotatePolicy::Property)
         {
           // llvm::errs() << "(property)";
           auto prop = ExportAnnotation::Property::getPropName(func_name);
@@ -309,7 +315,23 @@ public:
         {
           if (aFunctionDecl->getDeclKind() == Decl::Kind::CXXMethod)
           {
-            cs->pushFunction(func_name); // 通常のメソッドのみ登録
+            if (func_name.find("operator") != 0)
+            {
+              cs->pushFunction(func_name); // 通常のメソッドのみ登録
+            }
+            // operator not support
+          }
+          else if (annotate == AnnotatePolicy::Constructor &&
+                   aFunctionDecl->getDeclKind() == Decl::Kind::CXXConstructor)
+          {
+            std::vector<std::string> arg_list;
+            for (auto ci = aFunctionDecl->param_begin(); ci != aFunctionDecl->param_end(); ci++)
+            {
+              auto arg = *ci;
+              auto qt  = arg->getOriginalType();
+              arg_list.push_back(qt.getAsString());
+            }
+            cs->pushConstructor(arg_list);
           }
         }
       }
@@ -321,17 +343,38 @@ public:
   // Enum
   bool VisitEnumDecl(EnumDecl* aEnumDecl)
   {
-    // auto cs        = State.getCurrentStruct();
-    // bool to_export = checkAnnotation(aEnumDecl) == AnnotatePolicy::Export;
-    // if (to_export || cs)
-    // {
-    //   llvm::errs() << "Enum: " << aEnumDecl->getNameAsString() << "\n";
-    //   auto el = aEnumDecl->enumerators();
-    //   for (auto e = el.begin(); e != el.end(); e++)
-    //   {
-    //     llvm::errs() << "  M: " << (*e)->getNameAsString() << "\n";
-    //   }
-    // }
+    auto cs = State.getCurrentStruct();
+    if (cs && aEnumDecl->getAccess() != AS_public)
+    {
+      // class内部のpublic以外のものは出力しない
+      return true;
+    }
+    bool to_export = checkAnnotation(aEnumDecl) == AnnotatePolicy::Export;
+    if (to_export || cs)
+    {
+      auto eqt = aEnumDecl->getIntegerType();
+      auto ns  = State.getNamespace();
+      auto el  = aEnumDecl->enumerators();
+
+      ExportAnnotation::Enum lEnum(ns, aEnumDecl->getNameAsString(), eqt.getAsString());
+      for (auto e = el.begin(); e != el.end(); e++)
+      {
+        auto ie = *e;
+        auto iv = ie->getInitVal();
+        if (iv.isSigned())
+        {
+          lEnum.pushSigned(ie->getNameAsString(), iv.getSExtValue());
+        }
+        else
+        {
+          lEnum.pushSigned(ie->getNameAsString(), iv.getZExtValue());
+        }
+      }
+      if (!cs)
+      {
+        State.pushEnumerate(lEnum);
+      }
+    }
     return true;
   }
 
