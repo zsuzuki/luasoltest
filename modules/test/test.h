@@ -11,7 +11,7 @@ namespace TEST
 // test enum
 enum class LUAEXPORT TestEnum : uint8_t
 {
-  HELLO = 8,
+  HELLO = 6,
   WORLD,
   GOODBYE,
 };

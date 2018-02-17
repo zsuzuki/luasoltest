@@ -370,7 +370,11 @@ public:
           lEnum.pushSigned(ie->getNameAsString(), iv.getZExtValue());
         }
       }
-      if (!cs)
+      if (cs)
+      {
+        cs->pushEnumerate(lEnum);
+      }
+      else
       {
         State.pushEnumerate(lEnum);
       }

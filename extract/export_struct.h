@@ -119,14 +119,30 @@ public:
     m_data_list.push_back(d);
   }
 
-  void put(std::ostream& ostr) const
+  void put(std::ostream& ostr, std::string target) const
   {
     ostr << "  sol::table t_" << m_name << " = lua.create_table_with();\n";
     for (auto& d : m_data_list)
     {
-      ostr << "  t_" << m_name << "[\"" << d.label << "\"] = " << (d.is_signed ? d.n.s : d.n.u) << ";\n";
+      ostr << "  t_" << m_name << "[\"" << d.label << "\"] = ";
+      if (d.is_signed)
+      {
+        ostr << d.n.s;
+      }
+      else
+      {
+        ostr << d.n.u;
+      }
+      ostr << ";\n";
     }
-    ostr << "  t_" << m_namespace << "[\"" << m_name << "\"] = t_" << m_name << ";\n";
+    if (target.empty())
+    {
+      ostr << "  t_" << m_namespace << "[\"" << m_name << "\"] = t_" << m_name << ";\n";
+    }
+    else
+    {
+      ostr << "  lua[\"" << target << "\"][\"" << m_name << "\"] = t_" << m_name << ";\n";
+    }
   }
 };
 
@@ -151,6 +167,7 @@ private:
   std::vector<Function>           m_functions;
   std::map<std::string, Property> m_properties;
   std::vector<Constructor>        m_constructors;
+  std::vector<Enum>               m_enum_list;
 
   Type m_type = Type::Struct;
 
@@ -170,6 +187,7 @@ public:
     prop.second ? p.haveSetter() : p.haveGetter();
   }
   void pushConstructor(std::vector<std::string>& arg_list) { m_constructors.push_back(arg_list); }
+  void pushEnumerate(const Enum& e) { m_enum_list.push_back(e); }
 
   void put(std::ostream& ostr) const
   {
@@ -231,6 +249,10 @@ public:
       ostr << ")";
     }
     ostr << " );" << std::endl;
+    for (auto& e : m_enum_list)
+    {
+      e.put(ostr, m_name);
+    }
   }
 };
 
@@ -282,17 +304,17 @@ public:
   {
     ostr << "// auto generate file\n#include <sol2.h>\n#include \"" << input_name << "\"\n\n";
     ostr << "namespace LUAMODULES\n{\nvoid module_" << module_name << "(sol::state& lua)\n{\n";
+    for (auto& s : m_struct_list)
+    {
+      s->put(ostr);
+    }
     for (auto& t : m_create_table_list)
     {
       ostr << "  sol::table t_" << t << " = lua.create_named_table(\"" << t << "\");\n";
     }
     for (auto& e : m_enum_list)
     {
-      e.put(ostr);
-    }
-    for (auto& s : m_struct_list)
-    {
-      s->put(ostr);
+      e.put(ostr, "");
     }
     ostr << "}\n} // namespace LUAMODULES\n" << std::endl;
   }
