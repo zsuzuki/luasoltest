@@ -2,12 +2,8 @@
 // Copyright 2018 Yoshinori Suzuki<wave.suzuki.z@gmail.com>
 //
 #include <iostream>
-#include <sol2.h>
-
 #include <luabridge.h>
 #include <test/test.h>
-
-const char* Hello = "Hello,Gekko";
 
 int
 main(int argc, const char** argv)
@@ -33,15 +29,14 @@ main(int argc, const char** argv)
     }
   }
 
-  lua["hello"] = []() { std::cout << Hello << std::endl; };
-  LUAMODULES::module_test(lua);
-  TEST::Test t("C++");
-  lua["t"] = t;
   try
   {
+    lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::coroutine, sol::lib::string, sol::lib::math,
+                       sol::lib::table, sol::lib::debug, sol::lib::bit32);
+    LUAMODULES::module_test(lua);
     if (inputscript.empty())
     {
-      inputfile.empty() ? lua.script("hello()") : lua.script_file(inputfile);
+      inputfile.empty() ? lua.script("print('Hello')") : lua.script_file(inputfile);
     }
     else
     {
@@ -53,6 +48,5 @@ main(int argc, const char** argv)
     std::cerr << e.what() << std::endl;
     std::cerr << "execute failed..." << std::endl;
   }
-  // lua.open_libraries(sol::lib::base, sol::lib::package);
   return 0;
 }
