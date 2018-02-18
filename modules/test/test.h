@@ -36,13 +36,13 @@ public:
     FINISH
   };
 
-  int id = 0;
+  LUAREADONLY int id = 0;
 
   LUAPROPERTY void  setMessage(const std::string m);
   LUAPROPERTY const std::string& getMessage() const;
 
   LUAPROPERTY int  getCount() const;
-  LUAPROPERTY void getID(int i) { id = i; }
+  LUAPROPERTY void setID(int i) { id = i; }
 
   void print() const;
 

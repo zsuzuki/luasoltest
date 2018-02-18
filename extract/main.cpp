@@ -109,7 +109,8 @@ private:
     None,
     Export,
     Property,
-    Constructor
+    Constructor,
+    ReadOnly,
   };
 
 public:
@@ -179,6 +180,10 @@ private:
           else if (annotation == "luaconstructor")
           {
             ret = AnnotatePolicy::Constructor;
+          }
+          else if (annotation == "luareadonly")
+          {
+            ret = AnnotatePolicy::ReadOnly;
           }
         }
       }
@@ -284,7 +289,8 @@ public:
         if (aFieldDecl->getAccess() == AS_public)
         {
           // output
-          cs->pushVariable(aFieldDecl->getNameAsString());
+          bool ro = checkAnnotation(aFieldDecl) == AnnotatePolicy::ReadOnly;
+          cs->pushVariable(aFieldDecl->getNameAsString(), ro);
         }
       }
     }

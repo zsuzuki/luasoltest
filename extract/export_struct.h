@@ -30,9 +30,13 @@ public:
 //
 class Variable : public Unit
 {
+  bool read_only;
+
 public:
-  Variable(const std::string name) : Unit(name) {}
+  Variable(const std::string name, bool ro) : Unit(name), read_only(ro) {}
   ~Variable() override = default;
+
+  bool isReadOnly() const { return read_only; }
 };
 
 //
@@ -179,7 +183,7 @@ public:
   const std::string& getName() const { return m_name; }
 
   void pushFunction(const std::string func_name) { m_functions.push_back(Function(func_name)); }
-  void pushVariable(const std::string var_name) { m_variables.push_back(Variable(var_name)); }
+  void pushVariable(const std::string var_name, bool ro) { m_variables.push_back(Variable(var_name, ro)); }
   void pushProperty(const std::pair<std::string, bool> prop)
   {
     auto& p = m_properties[prop.first];
@@ -226,7 +230,12 @@ public:
     }
     for (auto& v : m_variables)
     {
-      ostr << ",\n    \"" << v.getName() << "\", &" << module_name << "::" << v.getName();
+      if (v.isReadOnly())
+      {
+        ostr << ",\n    \"" << v.getName() << "\", sol::readonly(&" << module_name << "::" << v.getName() << ")";
+      }
+else { ostr << ",\n    \"" << v.getName() << "\", &" << module_name << "::" << v.getName(); }
+       
     }
     for (auto& p : m_properties)
     {
