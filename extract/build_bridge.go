@@ -12,31 +12,15 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
-const (
-	macosPath = "/Applications/Xcode.app/Contents/Developer/"
-)
-
-func main() {
-	outputName := flag.String("o", "", "output name(base)")
-	flag.Parse()
-
-	remainArgs := flag.Args()
-	if len(remainArgs) < 1 {
-		fmt.Fprintf(os.Stderr, "need header file.\n")
-		flag.Usage()
-		os.Exit(1)
-	}
-
+// clangのシステムインクルードパス等を取得する
+func getClangSettings(fname string) []string {
 	includeDir := []string{}
 
-	// clang setup
-	clang := make([]string, 32)
-	clang[0] = "-Wp,-v"
-	clang[1] = remainArgs[0]
-	clangCmd := exec.Command("clang++", clang...)
+	clangCmd := exec.Command("clang++", "-Wp,-v", fname)
 	stderr, err := clangCmd.StderrPipe()
 	if err != nil {
 		log.Fatal(err)
@@ -70,40 +54,62 @@ func main() {
 		}
 	}
 
-	// extrace command
-	cmdline := make([]string, 32)
-	cmdline[0] = "./build/default/Debug/extract/luaextract"
-	cmdline[1] = remainArgs[0]
+	return includeDir
+}
 
-	argindex := 1
-	if *outputName != "" {
-		cmdline[argindex+1] = "-o"
-		cmdline[argindex+2] = *outputName
-		argindex = argindex + 2
+//
+func makeCommandArguments(baseDir string, inputName string, outputName string) []string {
+	commandLine := []string{inputName}
+	// output filename
+	if outputName != "" {
+		commandLine = append(commandLine, "-o", outputName)
 	}
-	argindex++
-	cmdline[argindex] = "-b"
-	argindex++
-	cmdline[argindex] = "modules"
-	argindex++
-	cmdline[argindex] = "--"
-	argindex++
-	cmdline[argindex] = "-x"
-	argindex++
-	cmdline[argindex] = "c++"
-	argindex++
-	cmdline[argindex] = "-std=c++14"
-	for _, up := range remainArgs[1:] {
-		argindex++
-		cmdline[argindex] = "-I" + up
-		// fmt.Println("---", up)
+	// base directory
+	if baseDir != "" {
+		commandLine = append(commandLine, "-b", baseDir)
 	}
-	for _, ip := range includeDir {
-		argindex++
-		cmdline[argindex] = "-I" + ip
-		// fmt.Println("***", ip)
+	// clang options
+	commandLine = append(commandLine, "--", "-x", "c++", "-std=c++17")
+
+	return commandLine
+}
+
+//
+func addIncludeDir(list []string, modulePath []string, includeDir []string) []string {
+	addList := func(al []string) {
+		for _, p := range al {
+			list = append(list, "-I", p)
+		}
 	}
-	cmd := exec.Command(cmdline[0], cmdline[1:argindex+9]...)
+	addList(modulePath)
+	addList(includeDir)
+	return list
+}
+
+// Application
+//
+func main() {
+	outputName := flag.String("o", "", "output name(base)")
+	commandPath := flag.String("p", "", "luaextract exist directory")
+	baseDir := flag.String("b", ".", "modules base directory")
+	flag.Parse()
+
+	remainArgs := flag.Args()
+	if len(remainArgs) < 1 {
+		fmt.Fprintf(os.Stderr, "need header file.\n")
+		flag.Usage()
+		os.Exit(1)
+	}
+	inputName := remainArgs[0]
+
+	// clangの情報を取得
+	includeDir := getClangSettings(inputName)
+	// コマンド名
+	commandName := filepath.Join(*commandPath, "luaextract")
+	// 解析コマンド
+	cmdline := makeCommandArguments(*baseDir, inputName, *outputName)
+	cmdline = addIncludeDir(cmdline, remainArgs[1:], includeDir)
+	cmd := exec.Command(commandName, cmdline...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
