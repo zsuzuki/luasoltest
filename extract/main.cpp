@@ -286,11 +286,12 @@ public:
       if (cs)
       {
         // アクセススペック(public, protected, private)
-        if (aFieldDecl->getAccess() == AS_public)
+        auto name = aFieldDecl->getNameAsString();
+        if (name.empty() == false && aFieldDecl->getAccess() == AS_public)
         {
           // output
           bool ro = checkAnnotation(aFieldDecl) == AnnotatePolicy::ReadOnly;
-          cs->pushVariable(aFieldDecl->getNameAsString(), ro);
+          cs->pushVariable(name, ro);
         }
       }
     }
@@ -350,9 +351,10 @@ public:
   bool VisitEnumDecl(EnumDecl* aEnumDecl)
   {
     auto cs = State.getCurrentStruct();
-    if (cs && aEnumDecl->getAccess() != AS_public)
+    if (cs && aEnumDecl->getAccess() != AS_public && aEnumDecl->getAccess() != AS_none)
     {
       // class内部のpublic以外のものは出力しない
+      // std::cout << "name: " << aEnumDecl->getNameAsString() << "/" << aEnumDecl->getAccess() << std::endl;
       return true;
     }
     bool to_export = checkAnnotation(aEnumDecl) == AnnotatePolicy::Export;
@@ -475,6 +477,9 @@ public:
 //
 //
 static llvm::cl::OptionCategory MyToolCategory("lua-export tool options");
+// static cl::opt<std::string> InputFile("header", cl::init("a.h"), cl::desc("initial header"),
+//                                       cl::cat(MyToolCategory));
+
 int
 main(int argc, const char** argv)
 {

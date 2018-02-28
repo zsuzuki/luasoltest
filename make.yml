@@ -10,7 +10,7 @@ variable:
 - {name: linker,   value: "${compiler_command}"}
 
 - name: luaextract
-  value: go run ./extract/build_bridge.go -o $out $in
+  value: go run ./extract/build_bridge.go -o $out $in ./modules
 
 define:
 - list:
@@ -52,13 +52,15 @@ subdir:
 
 prebuild:
 - name: $.cpp
+  target: soltest
   command: luaextract
   source:
   - list:
     - modules/test/test.h
 
 source:
-- list:
+- target: soltest
+  list:
   - src/main.cpp
   - $output/test.cpp
 

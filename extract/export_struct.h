@@ -234,8 +234,10 @@ public:
       {
         ostr << ",\n    \"" << v.getName() << "\", sol::readonly(&" << module_name << "::" << v.getName() << ")";
       }
-else { ostr << ",\n    \"" << v.getName() << "\", &" << module_name << "::" << v.getName(); }
-       
+      else
+      {
+        ostr << ",\n    \"" << v.getName() << "\", &" << module_name << "::" << v.getName();
+      }
     }
     for (auto& p : m_properties)
     {
