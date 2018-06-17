@@ -108,7 +108,8 @@ func main() {
 	commandName := filepath.Join(*commandPath, "luaextract")
 	// 解析コマンド
 	cmdline := makeCommandArguments(*baseDir, inputName, *outputName)
-	cmdline = addIncludeDir(cmdline, remainArgs[1:], includeDir)
+	incdirs := append(remainArgs[1:], *baseDir)
+	cmdline = addIncludeDir(cmdline, incdirs, includeDir)
 	cmd := exec.Command(commandName, cmdline...)
 
 	stdout, err := cmd.StdoutPipe()

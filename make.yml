@@ -10,11 +10,11 @@ variable:
 - {name: linker,   value: "${compiler_command}"}
 
 - name: luaextract
-  value: go run ./extract/build_bridge.go -o $out $in ./modules
+  value: go run ./extract/build_bridge.go -o $out -b modules $in
 
 define:
 - list:
-  debug: [ DEBUG=1 ]
+  release: [ NDEBUG=1 ]
 
 include:
 - {type: c9, list: [ /usr/local/include ]}

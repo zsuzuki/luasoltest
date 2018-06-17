@@ -229,7 +229,6 @@ public:
     }
 
     // アノテーション(in アトリビュート)
-
     if (checkAnnotation(aCXXRecordDecl) == AnnotatePolicy::Export)
     {
       // 出力struct

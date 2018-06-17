@@ -2,7 +2,7 @@
 # Copyright 2018 Yoshinori Suzuki<wave.suzuki.z@gmail.com>
 #
 variable:
-- {name: llvm, value: "/usr/local/Cellar/llvm/5.0.1"}
+- {name: llvm, value: "/usr/local/Cellar/llvm/6.0.0"}
 
 include:
 - list:
