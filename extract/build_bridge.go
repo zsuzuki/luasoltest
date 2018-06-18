@@ -62,11 +62,11 @@ func makeCommandArguments(baseDir string, inputName string, outputName string) [
 	commandLine := []string{inputName}
 	// output filename
 	if outputName != "" {
-		commandLine = append(commandLine, "-o", outputName)
+		commandLine = append(commandLine, "-outputfile", outputName)
 	}
 	// base directory
 	if baseDir != "" {
-		commandLine = append(commandLine, "-b", baseDir)
+		commandLine = append(commandLine, "-basedir", baseDir)
 	}
 	// clang options
 	commandLine = append(commandLine, "--", "-x", "c++", "-std=c++17")

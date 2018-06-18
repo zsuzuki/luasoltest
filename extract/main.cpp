@@ -27,71 +27,37 @@ using namespace clang;
 namespace
 {
 
-std::string output_filename; // 出力ファイル名(オプション)
-std::string input_filename;  // 入力ファイル名
-std::string basedir;
-bool        output_header = false;
+// options
+static llvm::cl::OptionCategory   MyToolCategory("lua-export tool options");
+static llvm::cl::opt<std::string> basedir("basedir", llvm::cl::init("."), llvm::cl::desc("Module base directory"),
+                                          llvm::cl::cat(MyToolCategory));
+static llvm::cl::opt<std::string> output_filename("outputfile", llvm::cl::init(""), llvm::cl::desc("Output filename"),
+                                                  llvm::cl::cat(MyToolCategory));
+static llvm::cl::opt<bool> output_header("outputheader", llvm::cl::init(false), llvm::cl::desc("Output header file"),
+                                         llvm::cl::cat(MyToolCategory));
 
-// オプションから出力ファイル名に相当する部分を抜き出して、それ以外をそのまま返す
-std::vector<const char*>
-build_option(int argc, const char** argv)
+// 入力ファイル名を抜く
+std::string input_filename;
+void
+pick_option(int argc, const char** argv)
 {
-  std::vector<const char*> option_list;
-  option_list.reserve(argc);
-  option_list.resize(0);
-
-  bool check_finish = false;
   for (int i = 0; i < argc; i++)
   {
-    std::string arg     = argv[i];
-    bool        to_copy = check_finish;
-    if (to_copy == false)
+    std::string arg = argv[i];
+    if (arg == "--")
     {
-      if (arg == "--")
-      {
-        to_copy = true;
-      }
-      else if (arg == "-o")
-      {
-        i++;
-        if (i >= argc)
-        {
-          break;
-        }
-        output_filename = argv[i];
-      }
-      else if (arg == "-H")
-      {
-        output_header = true;
-      }
-      else if (arg == "-b")
-      {
-        i++;
-        if (i >= argc)
-        {
-          break;
-        }
-        basedir = argv[i];
-      }
-      else
-      {
-        to_copy = true;
-        if (i > 0 && arg[0] != '-' && input_filename.empty())
-        {
-          input_filename = arg;
-        }
-      }
+      break;
     }
-
-    if (to_copy)
+    else
     {
-      option_list.push_back(argv[i]);
+      if (i > 0 && arg[0] != '-' && input_filename.empty())
+      {
+        input_filename = arg;
+        break;
+      }
     }
   }
-
-  return option_list;
 }
-
 } // namespace
 
 //
@@ -454,7 +420,14 @@ class ExportASTConsumer : public ASTConsumer
 private:
   ExportVisitor* visitor; // doesn't have to be private
 public:
-  explicit ExportASTConsumer(CompilerInstance* CI) : visitor(new ExportVisitor(CI)) {}
+  explicit ExportASTConsumer(CompilerInstance* CI) : visitor(new ExportVisitor(CI))
+  {
+    auto& headerSearchOptions                     = CI->getHeaderSearchOpts();
+    headerSearchOptions.UseBuiltinIncludes        = 1;
+    headerSearchOptions.UseStandardSystemIncludes = 1;
+    headerSearchOptions.UseStandardCXXIncludes    = 1;
+    headerSearchOptions.Verbose                   = true;
+  }
   // AST解析結果の受取
   void HandleTranslationUnit(ASTContext& Context) override
   {
@@ -475,17 +448,12 @@ public:
 //
 //
 //
-static llvm::cl::OptionCategory MyToolCategory("lua-export tool options");
-// static cl::opt<std::string> InputFile("header", cl::init("a.h"), cl::desc("initial header"),
-//                                       cl::cat(MyToolCategory));
-
 int
-main(int argc, const char** argv)
+main(int argc, const char** args)
 {
-  auto                         args   = build_option(argc, argv);
-  int                          n_args = args.size();
-  tooling::CommonOptionsParser op(n_args, &args[0], MyToolCategory);
-  tooling::ClangTool           Tool(op.getCompilations(), op.getSourcePathList());
-  auto                         action = clang::tooling::newFrontendActionFactory<ExportFrontendAction>();
+  pick_option(argc, args);
+  auto op     = tooling::CommonOptionsParser(argc, args, MyToolCategory);
+  auto Tool   = tooling::ClangTool(op.getCompilations(), op.getSourcePathList());
+  auto action = clang::tooling::newFrontendActionFactory<ExportFrontendAction>();
   return Tool.run(action.get());
 }
